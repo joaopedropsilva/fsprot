@@ -1,4 +1,5 @@
 import os
+import tempfile
 
 from .crypto import NaclBinder
 
@@ -13,6 +14,30 @@ class File:
         mac_message = f"{file_realpath}-{salt}".encode("utf-8")
 
         return NaclBinder.b64_gen_mac(mac_message, file_key)
+
+    @staticmethod
+    def rewrite_encrypted(file: str, file_key: bytes, header: str) -> None:
+        file_content = None
+        with open(file, "rb") as f:
+            file_content = f.read()
+
+        encrypted_as_text = header
+        encrypted_as_text += \
+            NaclBinder.b64_encrypt(file_key, file_content).decode("utf-8")
+        encrypted_as_text += "\n"
+
+
+        file_dir = os.path.dirname(file)
+        fd, tmp_path = tempfile.mkstemp(dir=file_dir)
+        try:
+            with os.fdopen(fd, "w") as temp:
+                temp.write(encrypted_as_text)
+                temp.flush()
+                os.fsync(temp.fileno())
+
+            os.rename(tmp_path, file)
+        except Exception:
+            os.unlink(tmp_path)
 
     @classmethod
     def _get_header_markers(cls) -> tuple[str, str]:

@@ -22,8 +22,5 @@ def protect(file: str) -> None:
     file_key = NaclBinder.b64_keygen()
 
     header = File.gen_header(file, pwd_bytes, file_key)
-    print(header)
-
-    # read file content
-    # rewrite encrypted
+    File.rewrite_encrypted(file, file_key, header)
 
