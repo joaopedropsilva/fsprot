@@ -1,7 +1,6 @@
 import sys
 
-from src.commands import protect
+from src.commands import protect, access
 
 if __name__ == "__main__":
-    protect(sys.argv[1])
-
+    access(sys.argv[1])

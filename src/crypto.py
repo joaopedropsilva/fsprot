@@ -23,7 +23,9 @@ class NaclBinder:
         return encoding.Base64Encoder.encode(box.encrypt(data))
 
     @staticmethod
-    def b64_decrypt(b64key: bytes, data: bytes) -> bytes:
+    def b64_decrypt(b64key: bytes, data: bytes | str) -> bytes:
+        data = encoding.Base64Encoder.decode(data)
+
         box = secret.SecretBox(b64key, encoder=encoding.Base64Encoder)
         return box.decrypt(data)
 
@@ -42,4 +44,3 @@ class NaclBinder:
         salt = encoding.Base64Encoder.decode(b64_salt)
 
         return cls._b64_derive(pwd, salt), b64_salt
-
