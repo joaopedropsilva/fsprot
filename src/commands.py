@@ -4,7 +4,7 @@ import grp
 import getpass
 
 from .crypto import NaclBinder
-from .file import File
+from .file import FileHeader, File
 
 
 def protect(file: str) -> None:
@@ -21,7 +21,7 @@ def protect(file: str) -> None:
 
     file_key = NaclBinder.b64_keygen()
 
-    header = File.gen_header(file, pwd_bytes, file_key)
+    header = FileHeader.gen_header(file, pwd_bytes, file_key)
     File.rewrite_protected(file, file_key, header)
 
 
