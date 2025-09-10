@@ -2,6 +2,7 @@ import os
 import pwd
 import grp
 import getpass
+from stat import S_IROTH
 
 from .crypto import NaclBinder
 from .file import FileHeader, File
@@ -23,6 +24,9 @@ def protect(file: str) -> None:
 
     header = FileHeader.gen_header(file, pwd_bytes, file_key)
     File.rewrite_protected(file, file_key, header)
+
+    current_mode = file_stat.st_mode
+    os.chmod(file, current_mode | S_IROTH)
 
 
 def access(file: str) -> None:
