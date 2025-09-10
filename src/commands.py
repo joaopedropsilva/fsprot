@@ -5,7 +5,8 @@ import getpass
 from stat import S_IROTH
 
 from .crypto import NaclBinder
-from .file import FileHeader, File
+from .file import File
+from .header import FileHeader
 
 
 def protect(file: str) -> None:
@@ -36,5 +37,9 @@ def access(file: str) -> None:
             "Passphrase: ")
     pwd_bytes = passphrase.encode("utf-8")
 
-    # Implement interface
-    print(File.access_protected(file, pwd_bytes).read())
+    header_info, file_bytes = File.access_protected(file, pwd_bytes)
+
+    # no updates for now
+    new_bytes = file_bytes
+
+    File.write_protected(file, passphrase, header_info, new_bytes)

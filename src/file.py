@@ -1,124 +1,16 @@
 import os
+import subprocess
 import tempfile
 import itertools
 from io import BytesIO
 
 from .crypto import NaclBinder
-
-
-class FileHeader:
-    APP_NAME = "FSPROT"
-    MAC_HEADER_MARKER = "FILE_MAC="
-    SALT_HEADER_MARKER = "SALT="
-    SEALED_FK_HEADER_MARKER = "SEALED_FK="
-    HEADER_ATTR_DELIMITER = ";\n"
-    HEADER_SIZE = 5
-
-    @staticmethod
-    def _build_mac(file: str, salt: str, file_key: bytes) -> str:
-        file_realpath = os.path.realpath(file)
-        mac_message = f"{file_realpath}-{salt}".encode("utf-8")
-
-        return NaclBinder.b64_gen_mac(mac_message, file_key).decode("utf-8")
-
-    @classmethod
-    def _get_header_markers(cls) -> tuple[str, str]:
-        start = "=" * 20 + f"{cls.APP_NAME} PROTECTED FILE HEADER" + "=" * 20 + "\n"
-        end = "=" * len(start) + "\n"
-
-        return start, end
-
-    @classmethod
-    def _build_header_str(cls, file_mac: str, salt: str, sealed_fk: str) -> str:
-        start_marker, end_marker = cls._get_header_markers()
-
-        header = start_marker
-        header += \
-            f"{cls.MAC_HEADER_MARKER}{file_mac}{cls.HEADER_ATTR_DELIMITER}" \
-            f"{cls.SALT_HEADER_MARKER}{salt}{cls.HEADER_ATTR_DELIMITER}" \
-            f"{cls.SEALED_FK_HEADER_MARKER}{sealed_fk}{cls.HEADER_ATTR_DELIMITER}"
-        header += end_marker
-
-        return header
-
-    @classmethod
-    def gen_header(cls, file: str, pwd_bytes: bytes, file_key: bytes) -> str:
-        sealing_key, salt_bytes = NaclBinder.derive_key_from_password(pwd_bytes)
-        salt = salt_bytes.decode("utf-8")
-        sealed_fk = \
-            NaclBinder.b64_encrypt(sealing_key, file_key).decode("utf-8")
-
-        file_mac = cls._build_mac(file, salt, file_key)
-
-        return cls._build_header_str(file_mac, salt, sealed_fk)
-
-    @classmethod
-    def _get_header_str(cls, file: str) -> str:
-        _, end_marker = cls._get_header_markers()
-
-        header = ""
-        with open(file) as f:
-            for number, line in enumerate(f):
-                header += line
-                if line == end_marker:
-                    break
-
-        return header
-
-    @classmethod
-    def _parse_header(cls, file: str) -> dict:
-        header_str = cls._get_header_str(file)
-
-        header_attributes = [
-            cls.MAC_HEADER_MARKER,
-            cls.SALT_HEADER_MARKER,
-            cls.SEALED_FK_HEADER_MARKER
-        ]
-        header_attr_values = []
-        delim_start_pos = 0
-        for attr in header_attributes:
-            attr_pos = header_str.find(attr)
-            if (attr_pos == -1):
-                raise Exception("Invalid header: missing header attribute.")
-            attr_pos = attr_pos + len(attr)
-
-            delimiter_pos = header_str.find(cls.HEADER_ATTR_DELIMITER, delim_start_pos)
-            if (delimiter_pos == -1):
-                raise Exception("Invalid header: malformed delimiter.")
-
-            header_attr_values.append(header_str[attr_pos:delimiter_pos])
-
-            delim_start_pos = delimiter_pos + 1
-
-        if len(header_attr_values) != len(header_attributes):
-            raise Exception("Invalid header: failed to extract header values.")
-
-        return {
-            "file_mac": header_attr_values[0],
-            "salt": header_attr_values[1],
-            "sealed_fk": header_attr_values[2]
-        }
-
-    @classmethod
-    def get_file_key(cls, file: str, pwd_bytes: bytes) -> bytes:
-        header = cls._parse_header(file)
-
-        file_mac = header.get("file_mac")
-        salt = header.get("salt")
-        sealed_fk = header.get("sealed_fk")
-
-        salt_bytes = salt.encode("utf-8")
-        sealed_fk_bytes = sealed_fk.encode("utf-8")
-
-        sealing_key, _ = NaclBinder.derive_key_from_password(pwd_bytes, salt_bytes)
-        file_key = NaclBinder.b64_decrypt(sealing_key, sealed_fk_bytes)
-
-        assert file_mac == cls._build_mac(file, salt, file_key), "Failed to validate file MAC."
-
-        return file_key
+from .header import FileHeader
 
 
 class File:
+    _CAP_ELEVATED_BIN_PATH = "/usr/local/bin/fsprot/cap_call_write"
+
     @staticmethod
     def rewrite_protected(file: str, file_key: bytes, header: str) -> None:
         file_content = None
@@ -129,7 +21,6 @@ class File:
         encrypted_as_text += \
             NaclBinder.b64_encrypt(file_key, file_content).decode("utf-8")
         encrypted_as_text += "\n"
-
 
         file_dir = os.path.dirname(file)
         fd, tmp_path = tempfile.mkstemp(dir=file_dir)
@@ -156,9 +47,29 @@ class File:
                 raise Exception(f"Unable to read file ciphertext: {err}")
 
     @classmethod
-    def access_protected(cls, file: str, pwd_bytes: bytes) -> BytesIO:
-        file_key = FileHeader.get_file_key(file, pwd_bytes)
+    def access_protected(cls, file: str, pwd_bytes: bytes) -> tuple[dict, BytesIO]:
+        header_info = FileHeader.get_header_info(file, pwd_bytes)
+        file_key = header_info.get("file_key")
 
         ciphertext = cls._get_ciphertext(file)
 
-        return BytesIO(NaclBinder.b64_decrypt(file_key, ciphertext))
+        return header_info, BytesIO(NaclBinder.b64_decrypt(file_key, ciphertext))
+
+    @classmethod
+    def _call_capable_write_script(cls, file: str, passphrase: str, content: str) -> None:
+        subprocess.run([cls._CAP_ELEVATED_BIN_PATH, file, passphrase, content])
+
+    @classmethod
+    def write_protected(cls,
+                        file: str,
+                        passphrase: str,
+                        header_info: dict,
+                        content_bytes: BytesIO) -> None:
+        file_key = header_info.get("file_key")
+
+        new_content = header_info.get("header_str")
+
+        protected_bytes = NaclBinder.b64_encrypt(file_key, content_bytes.read())
+        new_content += protected_bytes.decode("utf-8")
+
+        cls._call_capable_write_script(file, passphrase, content)
