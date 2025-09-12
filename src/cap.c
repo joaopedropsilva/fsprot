@@ -3,9 +3,9 @@
 
 int main(int argc, char **argv) {
     execv(
-        "/usr/bin/python3",
-        (char *[]){"python3", "/home/joaopedropsilva/fsprot/main.py", argv[1], argv[2], NULL}
+        "/home/joaopedropsilva/fsprot/venv/bin/python",
+        (char *[]){"python", "/home/joaopedropsilva/fsprot/src/write.py", argv[1], argv[2], argv[3], NULL}
     );
+
     return 1;
 }
-

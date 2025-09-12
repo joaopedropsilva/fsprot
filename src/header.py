@@ -1,6 +1,6 @@
 import os
 
-from .crypto import NaclBinder
+from crypto import NaclBinder
 
 
 class FileHeader:

@@ -4,12 +4,12 @@ import tempfile
 import itertools
 from io import BytesIO
 
-from .crypto import NaclBinder
-from .header import FileHeader
+from crypto import NaclBinder
+from header import FileHeader
 
 
 class File:
-    _CAP_ELEVATED_BIN_PATH = "/usr/local/bin/fsprot/cap_call_write"
+    _CAP_PRIVILEGED_BIN_PATH = "."
 
     @staticmethod
     def rewrite_protected(file: str, file_key: bytes, header: str) -> None:
@@ -57,7 +57,7 @@ class File:
 
     @classmethod
     def _call_capable_write_script(cls, file: str, passphrase: str, content: str) -> None:
-        subprocess.run([cls._CAP_ELEVATED_BIN_PATH, file, passphrase, content])
+        subprocess.run([cls._CAP_PRIVILEGED_BIN_PATH, file, passphrase, content])
 
     @classmethod
     def write_protected(cls,
