@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 INSTALL_PATH=/usr/local/share/fsprot
 

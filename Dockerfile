@@ -1,6 +1,6 @@
 FROM alpine:3.22.1
 
-COPY . /usr/local/share/fsprot
+COPY . /tmp/fsprot
 
 RUN apk update && apk add bash shadow \
     && addgroup -g 1000 john \
@@ -14,4 +14,4 @@ RUN apk update && apk add bash shadow \
 USER john
 WORKDIR /home/john
 
-ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT ["/tmp/fsprot/setup.sh", "/bin/bash"]
