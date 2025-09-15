@@ -4,9 +4,9 @@ import grp
 import getpass
 from stat import S_IROTH
 
-from .crypto import NaclBinder
-from .file import File
-from .header import FileHeader
+from crypto import NaclBinder
+from file import File
+from header import FileHeader
 
 
 def protect(file: str) -> None:
