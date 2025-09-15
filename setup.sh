@@ -10,11 +10,19 @@ sudo mkdir $INSTALL_PATH
 sudo cp -r ./src/* $INSTALL_PATH
 sudo chmod --recursive 0644 $INSTALL_PATH
 sudo chmod 0755 $INSTALL_PATH
-sudo chmod +x $INSTALL_PATH/fsprot
 
 echo [fsprot-setup] Installing app dependencies
 sudo python3 -m venv $INSTALL_PATH/venv
 sudo $INSTALL_PATH/venv/bin/python3 -m pip install -r ./requirements.txt
+
+echo [fsprot-setup] Creating app executable
+cat <<END_SCRIPT | sudo tee $INSTALL_PATH/fsprot > /dev/null
+#!/usr/bin/bash
+
+INSTALL_PATH=$INSTALL_PATH
+\$INSTALL_PATH/venv/bin/python3 \$INSTALL_PATH/cli.py "\$@"
+END_SCRIPT
+sudo chmod +x $INSTALL_PATH/fsprot
 
 echo [fsprot-setup] Compiling scripts
 # Add compilation with -D flag
@@ -27,10 +35,10 @@ USER_SHELL=$(getent passwd "$USER" | cut -d: -f7)
 case "$USER_SHELL" in
     */bash)  SHELL_CONFIG_FILE="$HOME/.bashrc" ;;
     */zsh)   SHELL_CONFIG_FILE="$HOME/.zshrc" ;;
-    *)       echo "Unable to add to PATH - unknown shell: $user_shell" >&2; exit 1 ;;
+    *)       echo "Unable to add to PATH - unknown shell: $USER_SHELL" >&2; exit 1 ;;
 esac
 [ -f "$SHELL_CONFIG_FILE" ] || touch "$SHELL_CONFIG_FILE"
-PATH_EXP='export PATH=$PATH:'"$INSTALL_PATH/fsprot"
+PATH_EXP='export PATH=$PATH:'"$INSTALL_PATH"
 if ! grep -qxF "$PATH_EXP" "$SHELL_CONFIG_FILE"; then
     echo $PATH_EXP >> $SHELL_CONFIG_FILE
 fi
