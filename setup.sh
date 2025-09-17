@@ -5,9 +5,13 @@ SOURCE_PATH="$(realpath "$(dirname $0)")"
 APP_EXECUTOR_PATH=/usr/local/bin/$APP_PREFIX
 INSTALL_PATH=/usr/local/lib/$APP_PREFIX
 
-if [[ -d $INSTALL_PATH ]]; then
-    echo [fsprot-setup] Application already installed.
+if [[ -d $INSTALL_PATH && -z "$1" ]]; then
+    echo [fsprot-setup] Application already installed. Use -r option to force reinstall.
     exit
+fi
+if [[ "$1" != "-r" ]]; then
+    echo Unknown argument $1.
+    exit 1
 fi
 
 if [[ $EUID -gt 0 ]]; then
@@ -16,6 +20,7 @@ if [[ $EUID -gt 0 ]]; then
 fi
 
 echo [fsprot-setup] Installing app at $INSTALL_PATH.
+rm -rf $INSTALL_PATH > /dev/null
 mkdir $INSTALL_PATH
 cp -r $SOURCE_PATH/src/* $INSTALL_PATH
 
