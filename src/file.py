@@ -9,7 +9,7 @@ from header import FileHeader
 
 
 class File:
-    _CAP_PRIVILEGED_BIN_PATH = "."
+    _CAP_PRIVILEGED_BIN_PATH = "/usr/local/lib/fsprot/cap"
 
     @staticmethod
     def rewrite_protected(file: str, file_key: bytes, header: str) -> None:
@@ -72,4 +72,4 @@ class File:
         protected_bytes = NaclBinder.b64_encrypt(file_key, content_bytes.read())
         new_content += protected_bytes.decode("utf-8")
 
-        cls._call_capable_write_script(file, passphrase, content)
+        cls._call_capable_write_script(file, passphrase, new_content)

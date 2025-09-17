@@ -115,5 +115,5 @@ class FileHeader:
 
         return {
             "file_key": file_key,
-            "header_str": header_str
+            "header_str": header.get("header_str")
         }
