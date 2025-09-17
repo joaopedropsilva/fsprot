@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
 INSTALL_PATH=$HOME/.fsprot
+if [[ -n "$1" ]]; then
+    INSTALL_PATH=$1
+fi
+if [ ! -d $(dirname "$INSTALL_PATH") ]; then
+    echo "Unable to install app on $INSTALL_PATH, check if directory exists." >&2
+    exit 1
+fi
 
 echo [fsprot-setup] Installing app at $INSTALL_PATH
-rm -rf $INSTALL_PATH
 mkdir -p $INSTALL_PATH/src
 cp -r ./src/* $INSTALL_PATH/src
 chmod 0644 $INSTALL_PATH/src/*.{py,c}
