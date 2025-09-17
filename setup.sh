@@ -2,7 +2,8 @@
 
 APP_PREFIX=fsprot
 SOURCE_PATH="$(realpath "$(dirname $0)")"
-INSTALL_PATH=/usr/local/bin/$APP_PREFIX
+APP_EXECUTOR_PATH=/usr/local/bin/$APP_PREFIX
+INSTALL_PATH=/usr/local/lib/$APP_PREFIX
 
 if [[ -d $INSTALL_PATH ]]; then
     echo [fsprot-setup] Application already installed.
@@ -15,9 +16,8 @@ if [[ $EUID -gt 0 ]]; then
 fi
 
 echo [fsprot-setup] Installing app at $INSTALL_PATH.
-mkdir -p $INSTALL_PATH/src
-cp -r $SOURCE_PATH/src/* $INSTALL_PATH/src
-chmod 0644 $INSTALL_PATH/src/*.{py,c}
+mkdir $INSTALL_PATH
+cp -r $SOURCE_PATH/src/* $INSTALL_PATH
 
 echo [fsprot-setup] Installing app dependencies.
 python3 -m venv $INSTALL_PATH/venv
@@ -25,15 +25,15 @@ $INSTALL_PATH/venv/bin/python3 -m pip install -r $SOURCE_PATH/requirements.txt
 
 echo [fsprot-setup] Compiling scripts.
 # Add compilation with -D flag
-gcc -o $INSTALL_PATH/src/cap $INSTALL_PATH/src/cap.c
-rm $INSTALL_PATH/src/cap.c
-setcap cap_dac_override,cap_dac_read_search+ep $INSTALL_PATH/src/cap
+gcc -o $INSTALL_PATH/cap $INSTALL_PATH/cap.c
+rm $INSTALL_PATH/cap.c
+setcap cap_dac_override,cap_dac_read_search+ep $INSTALL_PATH/cap
 
 echo [fsprot-setup] Creating app executable.
-cat <<END_SCRIPT > $INSTALL_PATH/fsprot
+cat <<END_SCRIPT > $APP_EXECUTOR_PATH
 #!/usr/bin/env bash
 
 INSTALL_PATH=$INSTALL_PATH
-\$INSTALL_PATH/venv/bin/python3 \$INSTALL_PATH/src/cli.py "\$@"
+\$INSTALL_PATH/venv/bin/python3 \$INSTALL_PATH/cli.py "\$@"
 END_SCRIPT
-chmod +x $INSTALL_PATH/fsprot
+chmod +x $APP_EXECUTOR_PATH
