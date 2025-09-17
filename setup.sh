@@ -2,7 +2,7 @@
 
 INSTALL_PATH=$HOME/.fsprot
 if [[ -n "$1" ]]; then
-    INSTALL_PATH=$1
+    INSTALL_PATH=$1/.fsprot
 fi
 if [ ! -d $(dirname "$INSTALL_PATH") ]; then
     echo "Unable to install app on $INSTALL_PATH, check if directory exists." >&2
