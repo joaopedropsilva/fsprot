@@ -22,7 +22,11 @@ echo [fsprot-setup] Compiling scripts
 # Add compilation with -D flag
 gcc -o $INSTALL_PATH/src/cap $INSTALL_PATH/src/cap.c
 rm $INSTALL_PATH/src/cap.c
-sudo setcap cap_dac_override,cap_dac_read_search+ep $INSTALL_PATH/src/cap
+if (( "$EUID" != 0 )); then
+    sudo setcap cap_dac_override,cap_dac_read_search+ep $INSTALL_PATH/src/cap
+else
+    setcap cap_dac_override,cap_dac_read_search+ep $INSTALL_PATH/src/cap
+fi
 
 echo [fsprot-setup] Creating app executable
 cat <<END_SCRIPT > $INSTALL_PATH/fsprot
