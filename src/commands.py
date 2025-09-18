@@ -31,6 +31,18 @@ def protect(file: str, rotate: bool) -> None:
     os.chmod(file, current_mode | S_IROTH)
 
 
+def _handle_output(output: str | TextIOWrapper | None, file_bytes: bytes) -> None:
+    file_str = file_bytes.decode("utf-8")
+    if isinstance(output, TextIOWrapper):
+        output.write(file_str)
+        exit()
+
+    with open(output, "w") as f:
+        f.write(file_str)
+
+    exit()
+
+
 def access(file: str, output: str | TextIOWrapper | None) -> None:
     passphrase = getpass.getpass(
             "Type a passphrase to protect the file\n"
@@ -40,7 +52,8 @@ def access(file: str, output: str | TextIOWrapper | None) -> None:
 
     header_info, file_bytes = File.access_protected(file, pwd_bytes)
 
-    # no updates for now
+    _handle_output(output, file_bytes)
+
     new_bytes = file_bytes
 
     File.write_protected(file, passphrase, header_info, new_bytes)

@@ -2,7 +2,6 @@ import os
 import subprocess
 import tempfile
 import itertools
-from io import BytesIO
 
 from crypto import NaclBinder
 from header import FileHeader
@@ -36,7 +35,6 @@ class File:
 
     @staticmethod
     def _get_ciphertext(file: str) -> str:
-        # Reads to EOF
         read_start = FileHeader.HEADER_SIZE
         with open(file) as f:
             try:
@@ -47,13 +45,13 @@ class File:
                 raise Exception(f"Unable to read file ciphertext: {err}")
 
     @classmethod
-    def access_protected(cls, file: str, pwd_bytes: bytes) -> tuple[dict, BytesIO]:
+    def access_protected(cls, file: str, pwd_bytes: bytes) -> tuple[dict, bytes]:
         header_info = FileHeader.get_header_info(file, pwd_bytes)
         file_key = header_info.get("file_key")
 
         ciphertext = cls._get_ciphertext(file)
 
-        return header_info, BytesIO(NaclBinder.b64_decrypt(file_key, ciphertext))
+        return header_info, NaclBinder.b64_decrypt(file_key, ciphertext)
 
     @classmethod
     def _call_capable_write_script(cls, file: str, passphrase: str, content: str) -> None:
@@ -64,12 +62,12 @@ class File:
                         file: str,
                         passphrase: str,
                         header_info: dict,
-                        content_bytes: BytesIO) -> None:
+                        content_bytes: bytes) -> None:
         file_key = header_info.get("file_key")
 
         new_content = header_info.get("header_str")
 
-        protected_bytes = NaclBinder.b64_encrypt(file_key, content_bytes.read())
+        protected_bytes = NaclBinder.b64_encrypt(file_key, content_bytes)
         new_content += protected_bytes.decode("utf-8")
 
         cls._call_capable_write_script(file, passphrase, new_content)
