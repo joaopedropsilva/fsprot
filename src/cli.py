@@ -2,7 +2,7 @@ import argparse
 import sys
 import os
 
-from commands import protect, access
+from commands import protect, access, unprotect
 
 
 DESCRIPTION="""
@@ -57,7 +57,7 @@ def cli_main() -> None:
     elif args.access:
         access(args.file, args.output)
     elif args.unprotect:
-        pass
+        unprotect(args.file)
 
 
 if __name__ == "__main__":

@@ -61,3 +61,13 @@ def access(file: str, output: str | TextIOWrapper | None) -> None:
     new_bytes = file_bytes
 
     File.write_protected(file, passphrase, header_info, new_bytes)
+
+def unprotect(file: str) -> None:
+    _assert_file_ownership(file)
+
+    _, pwd_bytes = _prompt_for_passphrase()
+
+    _, file_bytes = File.access_protected(file, pwd_bytes)
+
+    with open(file, "w") as f:
+        f.write(file_bytes.decode("utf-8"))
