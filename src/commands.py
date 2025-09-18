@@ -3,13 +3,14 @@ import pwd
 import grp
 import getpass
 from stat import S_IROTH
+from io import TextIOWrapper
 
 from crypto import NaclBinder
 from file import File
 from header import FileHeader
 
 
-def protect(file: str) -> None:
+def protect(file: str, rotate: bool) -> None:
     file_stat = os.stat(file)
     current_uid = os.geteuid()
 
@@ -30,7 +31,7 @@ def protect(file: str) -> None:
     os.chmod(file, current_mode | S_IROTH)
 
 
-def access(file: str) -> None:
+def access(file: str, output: str | TextIOWrapper | None) -> None:
     passphrase = getpass.getpass(
             "Type a passphrase to protect the file\n"
             "WARNING: you will not be able to recover the file contents without the passphrase!\n"
