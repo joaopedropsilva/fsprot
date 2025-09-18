@@ -10,28 +10,22 @@ from file import File
 from header import FileHeader
 
 
-def protect(file: str, rotate: bool) -> None:
+def _prompt_for_passphrase() -> tuple[str, bytes]:
+    passphrase = getpass.getpass(
+            "Type a passphrase to protect the file\n"
+            "WARNING: you will not be able to recover the file contents without the passphrase!\n"
+            "Passphrase: ")
+    return passphrase, passphrase.encode("utf-8")
+
+
+def _assert_file_ownership(file: str) -> None:
     file_stat = os.stat(file)
     current_uid = os.geteuid()
 
     assert file_stat.st_uid == current_uid, "Must file file owner to use this command."
 
-    passphrase = getpass.getpass(
-            "Type a passphrase to protect the file\n"
-            "WARNING: you will not be able to recover the file contents without the passphrase!\n"
-            "Passphrase: ")
-    pwd_bytes = passphrase.encode("utf-8")
 
-    file_key = NaclBinder.b64_keygen()
-
-    header = FileHeader.gen_header(file, pwd_bytes, file_key)
-    File.rewrite_protected(file, file_key, header)
-
-    current_mode = file_stat.st_mode
-    os.chmod(file, current_mode | S_IROTH)
-
-
-def _handle_output(output: str | TextIOWrapper | None, file_bytes: bytes) -> None:
+def _handle_output_arg(output: str | TextIOWrapper | None, file_bytes: bytes) -> None:
     file_str = file_bytes.decode("utf-8")
     if isinstance(output, TextIOWrapper):
         output.write(file_str)
@@ -43,16 +37,26 @@ def _handle_output(output: str | TextIOWrapper | None, file_bytes: bytes) -> Non
     exit()
 
 
+def protect(file: str, rotate: bool) -> None:
+    _assert_file_ownership(file)
+
+    _, pwd_bytes = _prompt_for_passphrase()
+
+    file_key = NaclBinder.b64_keygen()
+
+    header = FileHeader.gen_header(file, pwd_bytes, file_key)
+    File.rewrite_protected(file, file_key, header)
+
+    current_mode = os.stat(file).st_mode
+    os.chmod(file, current_mode | S_IROTH)
+
+
 def access(file: str, output: str | TextIOWrapper | None) -> None:
-    passphrase = getpass.getpass(
-            "Type a passphrase to protect the file\n"
-            "WARNING: you will not be able to recover the file contents without the passphrase!\n"
-            "Passphrase: ")
-    pwd_bytes = passphrase.encode("utf-8")
+    passphrase, pwd_bytes = _prompt_for_passphrase()
 
     header_info, file_bytes = File.access_protected(file, pwd_bytes)
 
-    _handle_output(output, file_bytes)
+    _handle_output_arg(output, file_bytes)
 
     new_bytes = file_bytes
 
