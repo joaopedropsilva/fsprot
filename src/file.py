@@ -11,6 +11,33 @@ class File:
     _CAP_PRIVILEGED_BIN_PATH = "/usr/local/lib/fsprot/cap"
 
     @staticmethod
+    def assert_ownership(file: str) -> None:
+        file_stat = os.stat(file)
+        current_uid = os.geteuid()
+
+        assert file_stat.st_uid == current_uid, "Must file file owner to use this command."
+
+    @staticmethod
+    def get_metadata(file: str) -> dict:
+        is_bin_file = False
+        try:
+            with open("rb") as f:
+                # file start until the first 20 bytes
+                while chunk := f.read(4096):
+                    chunk.decode("utf-8")
+                    if b"\x00" in chunk:
+                        is_bin_file = True
+        except UnicodeDecodeError:
+            is_bin_file = True
+
+        return {
+            "meta": {
+                "mode": os.stat(file).st_mode
+                "type": "bin" if is_bin_file else "txt"
+            }
+        }
+
+    @staticmethod
     def rewrite_protected(file: str, file_key: bytes, header: str) -> None:
         file_content = None
         with open(file, "rb") as f:
@@ -47,7 +74,7 @@ class File:
     @classmethod
     def access_protected(cls, file: str, pwd_bytes: bytes) -> tuple[dict, bytes]:
         header_info = FileHeader.get_header_info(file, pwd_bytes)
-        file_key = header_info.get("file_key")
+        file_key = header_info["file_key"]
 
         ciphertext = cls._get_ciphertext(file)
 
@@ -63,9 +90,9 @@ class File:
                         passphrase: str,
                         header_info: dict,
                         content_bytes: bytes) -> None:
-        file_key = header_info.get("file_key")
+        file_key = header_info["file_key"]
 
-        new_content = header_info.get("header_str")
+        new_content = header_info["header_str"]
 
         protected_bytes = NaclBinder.b64_encrypt(file_key, content_bytes)
         new_content += protected_bytes.decode("utf-8")

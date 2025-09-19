@@ -14,7 +14,7 @@ def catch_exceptions(function: callable) -> None:
     try:
         function()
     except Exception as err:
-        print(err)
+        print(repr(err))
 
 
 def cli_main() -> None:

@@ -8,8 +8,10 @@ class FileHeader:
     MAC_HEADER_MARKER = "FILE_MAC="
     SALT_HEADER_MARKER = "SALT="
     SEALED_FK_HEADER_MARKER = "SEALED_FK="
+    MODE_HEADER_MARKER = "MODE="
+    TYPE_HEADER_MARKER = "TYPE="
     HEADER_ATTR_DELIMITER = ";\n"
-    HEADER_SIZE = 5
+    HEADER_SIZE = 7
 
     @staticmethod
     def _build_mac(file: str, salt: str, file_key: bytes) -> str:
@@ -26,28 +28,34 @@ class FileHeader:
         return start, end
 
     @classmethod
-    def _build_header_str(cls, file_mac: str, salt: str, sealed_fk: str) -> str:
+    def _build_header_str(cls, file_mac: str, salt: str, sealed_fk: str, file_meta: dict) -> str:
+        f_mode = file_meta["mode"]
+        f_type = file_meta["type"]
         start_marker, end_marker = cls._get_header_markers()
 
         header = start_marker
         header += \
             f"{cls.MAC_HEADER_MARKER}{file_mac}{cls.HEADER_ATTR_DELIMITER}" \
             f"{cls.SALT_HEADER_MARKER}{salt}{cls.HEADER_ATTR_DELIMITER}" \
-            f"{cls.SEALED_FK_HEADER_MARKER}{sealed_fk}{cls.HEADER_ATTR_DELIMITER}"
+            f"{cls.SEALED_FK_HEADER_MARKER}{sealed_fk}{cls.HEADER_ATTR_DELIMITER}" \
+            f"{cls.MODE_HEADER_MARKER}{f_mode}{cls.HEADER_ATTR_DELIMITER}" \
+            f"{cls.TYPE_HEADER_MARKER}{f_type}{cls.HEADER_ATTR_DELIMITER}"
         header += end_marker
 
         return header
 
     @classmethod
-    def gen_header(cls, file: str, pwd_bytes: bytes, file_key: bytes) -> str:
+    def gen_header(cls, file_data: dict, pwd_bytes: bytes) -> str:
+        file_key = file_data["file_key"]
         sealing_key, salt_bytes = NaclBinder.derive_key_from_password(pwd_bytes)
         salt = salt_bytes.decode("utf-8")
         sealed_fk = \
             NaclBinder.b64_encrypt(sealing_key, file_key).decode("utf-8")
 
+        file = file_data["file"]
         file_mac = cls._build_mac(file, salt, file_key)
 
-        return cls._build_header_str(file_mac, salt, sealed_fk)
+        return cls._build_header_str(file_mac, salt, sealed_fk, file_data["meta"])
 
     @classmethod
     def _get_header_str(cls, file: str) -> str:
@@ -69,7 +77,9 @@ class FileHeader:
         header_attributes = [
             cls.MAC_HEADER_MARKER,
             cls.SALT_HEADER_MARKER,
-            cls.SEALED_FK_HEADER_MARKER
+            cls.SEALED_FK_HEADER_MARKER,
+            cls.MODE_HEADER_MARKER
+            cls.TYPE_HEADER_MARKER
         ]
         header_attr_values = []
         delim_start_pos = 0
@@ -94,6 +104,8 @@ class FileHeader:
             "file_mac": header_attr_values[0],
             "salt": header_attr_values[1],
             "sealed_fk": header_attr_values[2],
+            "mode": header_attr_values[3],
+            "type": header_attr_values[4],
             "header_str": header_str
         }
 
@@ -101,9 +113,9 @@ class FileHeader:
     def get_header_info(cls, file: str, pwd_bytes: bytes) -> dict:
         header = cls._parse_header(file)
 
-        file_mac = header.get("file_mac")
-        salt = header.get("salt")
-        sealed_fk = header.get("sealed_fk")
+        file_mac = header["file_mac"]
+        salt = header["salt"]
+        sealed_fk = header["sealed_fk"]
 
         salt_bytes = salt.encode("utf-8")
         sealed_fk_bytes = sealed_fk.encode("utf-8")
@@ -113,7 +125,4 @@ class FileHeader:
 
         assert file_mac == cls._build_mac(file, salt, file_key), "Failed to validate file MAC."
 
-        return {
-            "file_key": file_key,
-            "header_str": header.get("header_str")
-        }
+        return header

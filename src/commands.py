@@ -18,13 +18,6 @@ def _prompt_for_passphrase() -> tuple[str, bytes]:
     return passphrase, passphrase.encode("utf-8")
 
 
-def _assert_file_ownership(file: str) -> None:
-    file_stat = os.stat(file)
-    current_uid = os.geteuid()
-
-    assert file_stat.st_uid == current_uid, "Must file file owner to use this command."
-
-
 def _handle_output_arg(output: str | TextIOWrapper | None, file_bytes: bytes) -> None:
     file_str = file_bytes.decode("utf-8")
     if isinstance(output, TextIOWrapper):
@@ -38,16 +31,23 @@ def _handle_output_arg(output: str | TextIOWrapper | None, file_bytes: bytes) ->
 
 
 def protect(file: str, rotate: bool) -> None:
-    _assert_file_ownership(file)
+    File.assert_ownership(file)
 
     _, pwd_bytes = _prompt_for_passphrase()
 
     file_key = NaclBinder.b64_keygen()
 
-    header = FileHeader.gen_header(file, pwd_bytes, file_key)
+    file_data = {
+        "file": file,
+        "file_key": file_key,
+        **File.get_metadata(file)
+    }
+
+    header = FileHeader.gen_header(file_data, pwd_bytes)
+
     File.rewrite_protected(file, file_key, header)
 
-    current_mode = os.stat(file).st_mode
+    current_mode = file_data["meta"]["mode"]
     os.chmod(file, current_mode | S_IROTH)
 
 
@@ -56,6 +56,7 @@ def access(file: str, output: str | TextIOWrapper | None) -> None:
 
     header_info, file_bytes = File.access_protected(file, pwd_bytes)
 
+    # alter here
     _handle_output_arg(output, file_bytes)
 
     new_bytes = file_bytes
@@ -63,11 +64,12 @@ def access(file: str, output: str | TextIOWrapper | None) -> None:
     File.write_protected(file, passphrase, header_info, new_bytes)
 
 def unprotect(file: str) -> None:
-    _assert_file_ownership(file)
+    File.assert_ownership(file)
 
     _, pwd_bytes = _prompt_for_passphrase()
 
-    _, file_bytes = File.access_protected(file, pwd_bytes)
+    header_info, file_bytes = File.access_protected(file, pwd_bytes)
 
+    # alter here
     with open(file, "w") as f:
         f.write(file_bytes.decode("utf-8"))
