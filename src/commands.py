@@ -74,11 +74,13 @@ def access(file: str, output: str | TextIOWrapper | None) -> None:
 def unprotect(file: str) -> None:
     File.assert_ownership(file)
 
+    file_meta = File.get_metadata(file)
+
     _, pwd_bytes = _prompt_for_passphrase()
 
     header_info, file_bytes = File.access_protected(file, pwd_bytes)
 
-    write_mode, content = File.get_write_mode_and_content(file_type, file_bytes)
+    write_mode, content = File.get_write_mode_and_content(file_meta["type"], file_bytes)
 
     with open(file, write_mode) as f:
         f.write(content)
