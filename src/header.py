@@ -78,7 +78,7 @@ class FileHeader:
             cls.MAC_HEADER_MARKER,
             cls.SALT_HEADER_MARKER,
             cls.SEALED_FK_HEADER_MARKER,
-            cls.MODE_HEADER_MARKER
+            cls.MODE_HEADER_MARKER,
             cls.TYPE_HEADER_MARKER
         ]
         header_attr_values = []
@@ -125,4 +125,7 @@ class FileHeader:
 
         assert file_mac == cls._build_mac(file, salt, file_key), "Failed to validate file MAC."
 
-        return header
+        return {
+            **header,
+            **{ "file_key": file_key }
+        }

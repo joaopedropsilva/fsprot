@@ -21,7 +21,7 @@ class File:
     def get_metadata(file: str) -> dict:
         is_bin_file = False
         try:
-            with open("rb") as f:
+            with open(file, "rb") as f:
                 # file start until the first 20 bytes
                 while chunk := f.read(4096):
                     chunk.decode("utf-8")
@@ -32,10 +32,20 @@ class File:
 
         return {
             "meta": {
-                "mode": os.stat(file).st_mode
+                "mode": os.stat(file).st_mode,
                 "type": "bin" if is_bin_file else "txt"
             }
         }
+
+    @staticmethod
+    def get_write_mode_and_content(file_type: str, file_bytes: bytes) -> tuple[str, bytes | str]:
+        write_mode = "wb"
+        content = file_bytes
+        if file_type == "txt":
+            write_mode = "w"
+            content = file_bytes.decode("utf-8")
+
+        return write_mode, content
 
     @staticmethod
     def rewrite_protected(file: str, file_key: bytes, header: str) -> None:

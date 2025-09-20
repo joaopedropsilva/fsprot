@@ -18,14 +18,22 @@ def _prompt_for_passphrase() -> tuple[str, bytes]:
     return passphrase, passphrase.encode("utf-8")
 
 
-def _handle_output_arg(output: str | TextIOWrapper | None, file_bytes: bytes) -> None:
-    file_str = file_bytes.decode("utf-8")
+def _handle_output_arg(output: str | TextIOWrapper | None,
+                       file_bytes: bytes,
+                       file_type: str) -> None:
+    write_mode, content = File.get_write_mode_and_content(file_type, file_bytes)
+
     if isinstance(output, TextIOWrapper):
-        output.write(file_str)
+        if file_type == "bin":
+            print("Cannot write binary file to stdout.")
+            exit(1)
+
+        output.write(content)
+
         exit()
 
-    with open(output, "w") as f:
-        f.write(file_str)
+    with open(output, write_mode) as f:
+        f.write(content)
 
     exit()
 
@@ -56,12 +64,12 @@ def access(file: str, output: str | TextIOWrapper | None) -> None:
 
     header_info, file_bytes = File.access_protected(file, pwd_bytes)
 
-    # alter here
-    _handle_output_arg(output, file_bytes)
+    _handle_output_arg(output, file_bytes, header_info["type"])
 
     new_bytes = file_bytes
 
     File.write_protected(file, passphrase, header_info, new_bytes)
+
 
 def unprotect(file: str) -> None:
     File.assert_ownership(file)
@@ -70,6 +78,7 @@ def unprotect(file: str) -> None:
 
     header_info, file_bytes = File.access_protected(file, pwd_bytes)
 
-    # alter here
-    with open(file, "w") as f:
-        f.write(file_bytes.decode("utf-8"))
+    write_mode, content = File.get_write_mode_and_content(file_type, file_bytes)
+
+    with open(file, write_mode) as f:
+        f.write(content)
