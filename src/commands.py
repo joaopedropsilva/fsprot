@@ -1,4 +1,5 @@
 import os
+import sys
 import pwd
 import grp
 import getpass
@@ -25,7 +26,7 @@ def _handle_output_arg(output: str | TextIOWrapper | None,
 
     if isinstance(output, TextIOWrapper):
         if file_type == "bin":
-            print("Cannot write binary file to stdout.")
+            sys.stderr.write("Cannot write binary file to stdout.\n")
             exit(1)
 
         output.write(content)
@@ -41,6 +42,12 @@ def _handle_output_arg(output: str | TextIOWrapper | None,
 def protect(file: str, rotate: bool) -> None:
     File.assert_ownership(file)
 
+    file_meta = File.get_metadata(file)
+
+    if file_meta["is_protected"]:
+        print("File is already protected by fsprot.")
+        exit(1)
+
     _, pwd_bytes = _prompt_for_passphrase()
 
     file_key = NaclBinder.b64_keygen()
@@ -48,7 +55,7 @@ def protect(file: str, rotate: bool) -> None:
     file_data = {
         "file": file,
         "file_key": file_key,
-        **File.get_metadata(file)
+        "meta": {**file_meta}
     }
 
     header = FileHeader.gen_header(file_data, pwd_bytes)
@@ -60,6 +67,11 @@ def protect(file: str, rotate: bool) -> None:
 
 
 def access(file: str, output: str | TextIOWrapper | None) -> None:
+    file_meta = File.get_metadata(file)
+    if not file_meta["is_protected"]:
+        sys.stderr.write("Cannot \"access\" an unprotected file.\n")
+        exit(1)
+
     passphrase, pwd_bytes = _prompt_for_passphrase()
 
     header_info, file_bytes = File.access_protected(file, pwd_bytes)
@@ -75,6 +87,10 @@ def unprotect(file: str) -> None:
     File.assert_ownership(file)
 
     file_meta = File.get_metadata(file)
+
+    if not file_meta["is_protected"]:
+        sys.stderr.write("Cannot \"unprotect\" an unprotected file.\n")
+        exit(1)
 
     _, pwd_bytes = _prompt_for_passphrase()
 

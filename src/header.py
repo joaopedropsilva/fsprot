@@ -127,5 +127,9 @@ class FileHeader:
 
         return {
             **header,
-            **{ "file_key": file_key }
+            **{"file_key": file_key}
         }
+
+    @classmethod
+    def check_if_header_exists(cls, file_chunk: str) -> bool:
+        return cls.APP_NAME in file_chunk

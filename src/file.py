@@ -20,21 +20,21 @@ class File:
     @staticmethod
     def get_metadata(file: str) -> dict:
         is_bin_file = False
+        is_protected = False
         try:
             with open(file, "rb") as f:
-                # file start until the first 20 bytes
                 while chunk := f.read(4096):
-                    chunk.decode("utf-8")
+                    txt_content = chunk.decode("utf-8")
                     if b"\x00" in chunk:
                         is_bin_file = True
+                    is_protected = FileHeader.check_if_header_exists(txt_content)
         except UnicodeDecodeError:
             is_bin_file = True
 
         return {
-            "meta": {
-                "mode": os.stat(file).st_mode,
-                "type": "bin" if is_bin_file else "txt"
-            }
+            "mode": os.stat(file).st_mode,
+            "type": "bin" if is_bin_file else "txt",
+            "is_protected": is_protected
         }
 
     @staticmethod
