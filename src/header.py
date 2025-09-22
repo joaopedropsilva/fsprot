@@ -133,3 +133,7 @@ class FileHeader:
     @classmethod
     def check_if_header_exists(cls, file_chunk: str) -> bool:
         return cls.APP_NAME in file_chunk
+
+    @classmethod
+    def get_header_components(cls, file: str) -> dict:
+        return cls._parse_header(file)

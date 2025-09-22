@@ -1,9 +1,5 @@
-import os
 import sys
-import pwd
-import grp
 import getpass
-from stat import S_IROTH
 from io import TextIOWrapper
 
 from crypto import NaclBinder
@@ -19,10 +15,13 @@ def _prompt_for_passphrase() -> tuple[str, bytes]:
     return passphrase, passphrase.encode("utf-8")
 
 
-def _handle_output_arg(output: str | TextIOWrapper | None,
-                       file_bytes: bytes,
-                       file_type: str) -> None:
-    write_mode, content = File.get_write_mode_and_content(file_type, file_bytes)
+def _handle_output_arg(file_data: dict, output: str | TextIOWrapper | None) -> None:
+    file_type = file_data["type"]
+    file_mode = file_data["mode"]
+    file_bytes = file_data["file_bytes"]
+
+    write_mode = File.get_write_mode_by_type(file_type)
+    content = File.get_content_by_type(file_type, file_bytes)
 
     if isinstance(output, TextIOWrapper):
         if file_type == "bin":
@@ -35,6 +34,8 @@ def _handle_output_arg(output: str | TextIOWrapper | None,
 
     with open(output, write_mode) as f:
         f.write(content)
+
+    File.restore_file_mode(output, file_mode)
 
     exit()
 
@@ -62,8 +63,7 @@ def protect(file: str, rotate: bool) -> None:
 
     File.rewrite_protected(file, file_key, header)
 
-    current_mode = file_data["meta"]["mode"]
-    os.chmod(file, current_mode | S_IROTH)
+    File.set_mode_0644(file)
 
 
 def access(file: str, output: str | TextIOWrapper | None) -> None:
@@ -76,7 +76,12 @@ def access(file: str, output: str | TextIOWrapper | None) -> None:
 
     header_info, file_bytes = File.access_protected(file, pwd_bytes)
 
-    _handle_output_arg(output, file_bytes, header_info["type"])
+    file_data = {
+        "type": file_meta["type"],
+        "mode": file_meta["mode"],
+        "file_bytes": file_bytes
+    }
+    _handle_output_arg(file_data, output)
 
     new_bytes = file_bytes
 
@@ -94,9 +99,12 @@ def unprotect(file: str) -> None:
 
     _, pwd_bytes = _prompt_for_passphrase()
 
-    header_info, file_bytes = File.access_protected(file, pwd_bytes)
+    _, file_bytes = File.access_protected(file, pwd_bytes)
 
-    write_mode, content = File.get_write_mode_and_content(file_meta["type"], file_bytes)
+    write_mode = File.get_write_mode_by_type(file_meta["type"])
+    content = File.get_content_by_type(file_meta["type"], file_bytes)
 
     with open(file, write_mode) as f:
         f.write(content)
+
+    File.restore_file_mode(file, file_meta["mode"])

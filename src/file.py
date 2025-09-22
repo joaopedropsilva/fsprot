@@ -2,6 +2,7 @@ import os
 import subprocess
 import tempfile
 import itertools
+from stat import S_IRUSR, S_IWUSR, S_IRGRP, S_IROTH, S_IMODE
 
 from crypto import NaclBinder
 from header import FileHeader
@@ -23,29 +24,44 @@ class File:
         is_protected = False
         try:
             with open(file, "rb") as f:
-                while chunk := f.read(4096):
-                    txt_content = chunk.decode("utf-8")
-                    if b"\x00" in chunk:
-                        is_bin_file = True
-                    is_protected = FileHeader.check_if_header_exists(txt_content)
+                chunk = f.read(4096)
+                txt_content = chunk.decode("utf-8")
+                if b"\x00" in chunk:
+                    is_bin_file = True
+                is_protected = FileHeader.check_if_header_exists(txt_content)
         except UnicodeDecodeError:
             is_bin_file = True
 
+        file_type = "txt"
+        if is_protected:
+            components = FileHeader.get_header_components(file)
+            file_type = components["type"]
+            file_mode = int(components["mode"])
+        else:
+            if is_bin_file:
+                file_type = "bin"
+            file_mode = S_IMODE(os.stat(file).st_mode)
+
         return {
-            "mode": os.stat(file).st_mode,
-            "type": "bin" if is_bin_file else "txt",
+            "mode": file_mode,
+            "type": file_type,
             "is_protected": is_protected
         }
 
     @staticmethod
-    def get_write_mode_and_content(file_type: str, file_bytes: bytes) -> tuple[str, bytes | str]:
+    def get_write_mode_by_type(file_type: str) -> bytes | str:
         write_mode = "wb"
-        content = file_bytes
         if file_type == "txt":
             write_mode = "w"
-            content = file_bytes.decode("utf-8")
 
-        return write_mode, content
+        return write_mode
+
+    @staticmethod
+    def get_content_by_type(file_type: str, file_bytes: bytes) -> bytes | str:
+        if file_type == "txt":
+            return file_bytes.decode("utf-8")
+
+        return file_bytes
 
     @staticmethod
     def rewrite_protected(file: str, file_key: bytes, header: str) -> None:
@@ -69,6 +85,14 @@ class File:
             os.rename(tmp_path, file)
         except Exception:
             os.unlink(tmp_path)
+
+    @staticmethod
+    def set_mode_0644(file: str) -> None:
+        os.chmod(file, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+
+    @staticmethod
+    def restore_file_mode(file: str, mode: int) -> None:
+        os.chmod(file, mode)
 
     @staticmethod
     def _get_ciphertext(file: str) -> str:
