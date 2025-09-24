@@ -5,6 +5,7 @@ from io import TextIOWrapper
 from crypto import NaclBinder
 from file import File
 from header import FileHeader
+from interface import edit_file
 
 
 def _prompt_for_passphrase() -> tuple[str, bytes]:
@@ -76,14 +77,21 @@ def access(file: str, output: str | TextIOWrapper | None) -> None:
 
     header_info, file_bytes = File.access_protected(file, pwd_bytes)
 
-    file_data = {
-        "type": file_meta["type"],
-        "mode": file_meta["mode"],
-        "file_bytes": file_bytes
-    }
-    _handle_output_arg(file_data, output)
+    if output:
+        file_data = {
+            "type": file_meta["type"],
+            "mode": file_meta["mode"],
+            "file_bytes": file_bytes
+        }
+        _handle_output_arg(file_data, output)
 
-    new_bytes = file_bytes
+    if file_meta["type"] == "bin":
+        sys.stderr.write("Editing operations are only available to text files."
+                         "Use --access --output <file> to access binary files.")
+        exit(1)
+
+    content = File.get_content_by_type(file_meta["type"], file_bytes)
+    new_bytes = edit_file(content)
 
     File.write_protected(file, passphrase, header_info, new_bytes)
 

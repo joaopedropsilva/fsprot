@@ -3,6 +3,7 @@ import tempfile
 from sys import argv
 
 from header import FileHeader
+from file import File
 
 
 def write_to_file(file: str, passphrase: str, content: str) -> None:
@@ -17,8 +18,10 @@ def write_to_file(file: str, passphrase: str, content: str) -> None:
         # Revalidate file parameters to check if 
         # it was not altered during execution
         FileHeader.get_header_info(file, passphrase.encode("utf-8"))
+        file_meta = File.get_metadata(file)
 
         os.rename(tmp_path, file)
+        File.restore_file_mode(file, file_meta["mode"])
     except Exception as e:
         print(e)
         os.unlink(tmp_path)
